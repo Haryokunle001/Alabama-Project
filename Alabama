@@ -1,0 +1,62 @@
+import gurobipy as gp
+from gurobipy import GRB
+import pandas as pd
+
+# Alabama Population Data
+data = {'geo_graphical Unit': [
+        'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10',
+        'G11', 'G12', 'G13', 'G14', 'G15', 'G16', 'G17', 'G18', 'G19', 'G20',
+        'G21', 'G22', 'G23', 'G24', 'G25', 'G26', 'G27', 'G28', 'G29', 'G30',
+        'G31', 'G32', 'G33', 'G34', 'G35', 'G36', 'G37', 'G38', 'G39', 'G40',
+        'G41', 'G42', 'G43', 'G44', 'G45', 'G46', 'G47', 'G48', 'G49', 'G50'],
+        'Population': [
+        68657, 109852, 144533, 111024, 141336, 123475, 71110, 54405, 143091, 113475,
+        148904, 96950, 98045, 139064, 71853, 79888, 113110, 144461, 132217, 63114,
+        112279, 99427, 138254, 115148, 103417, 60724, 70434, 78476, 67344, 63356,
+        55278, 135089, 113847, 131909, 57911, 60333, 54768, 60295, 95746, 74641,
+        66154, 88613, 131747, 59679, 132093, 123245, 102211, 141379, 91555, 146059]}
+population_data = pd.DataFrame(data)
+
+# Define the model
+model = gp.Model("Congressional_Redistricting")
+
+# Define Decision Variables
+x = model.addVars(population_data.index, vtype=GRB.BINARY, name="x")
+
+# Define Objective Function: Minimize population deviation
+total_population = population_data['Population'].sum()
+ideal_population = total_population / len(population_data)
+model.setObjective(
+    gp.quicksum((x[i] * population_data.at[i, 'Population']) for i in population_data.index) - ideal_population,
+    GRB.MINIMIZE)
+
+# Add Constraints (Federal and State Criteria
+
+# Solve the model
+model.optimize()
+
+# Display Results
+if model.status == GRB.OPTIMAL:
+    for i in range(len(population_data)):
+     if x[i].x > 0.5:
+        counties_in_district = []
+        for j in range(len(population_data)):
+            if x[i, j].x > 0.5:
+                counties_in_district.append(j)
+        district_population = 0
+        for j in counties_in_district:
+            district_population += population_data.at[j, 'Population']
+        print(f"District {i + 1}: Counties {counties_in_district} (Population: {district_population})")
+        print(f"District {i + 1}: Population {population_data.at[i, 'Population']}")
+    print(f"Best Objective: {abs(model.objVal)}")
+    print(f"Best Bound: {abs(model.ObjBound)}")
+else:
+    print("Optimization problem is infeasible or unbounded.")
+# Replace 'your_file_path.csv' with the actual path to your CSV file
+A_path = 'Alabama_Data.csv'
+
+# Read the CSV file into a DataFrame
+data_set = pd.read_csv(A_path)
+
+# Display the DataFrame
+print(data_set)
